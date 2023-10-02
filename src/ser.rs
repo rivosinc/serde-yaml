@@ -3,12 +3,10 @@
 //! This module provides YAML serialization with the type `Serializer`.
 
 use crate::error::{self, Error, ErrorImpl};
-use crate::libyaml;
 use crate::libyaml::emitter::{Emitter, Event, Mapping, Scalar, ScalarStyle, Sequence};
 use crate::value::tagged::{self, MaybeTag};
-use serde::de::Visitor;
 use serde::ser::{self, Serializer as _};
-use std::fmt::{self, Display};
+use std::fmt::Display;
 use std::io;
 use std::marker::PhantomData;
 use std::mem;
@@ -306,62 +304,10 @@ where
     }
 
     fn serialize_str(self, value: &str) -> Result<()> {
-        struct InferScalarStyle;
-
-        impl<'de> Visitor<'de> for InferScalarStyle {
-            type Value = ScalarStyle;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("I wonder")
-            }
-
-            fn visit_bool<E>(self, _v: bool) -> Result<Self::Value, E> {
-                Ok(ScalarStyle::SingleQuoted)
-            }
-
-            fn visit_i64<E>(self, _v: i64) -> Result<Self::Value, E> {
-                Ok(ScalarStyle::SingleQuoted)
-            }
-
-            fn visit_i128<E>(self, _v: i128) -> Result<Self::Value, E> {
-                Ok(ScalarStyle::SingleQuoted)
-            }
-
-            fn visit_u64<E>(self, _v: u64) -> Result<Self::Value, E> {
-                Ok(ScalarStyle::SingleQuoted)
-            }
-
-            fn visit_u128<E>(self, _v: u128) -> Result<Self::Value, E> {
-                Ok(ScalarStyle::SingleQuoted)
-            }
-
-            fn visit_f64<E>(self, _v: f64) -> Result<Self::Value, E> {
-                Ok(ScalarStyle::SingleQuoted)
-            }
-
-            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E> {
-                Ok(if crate::de::digits_but_not_number(v) {
-                    ScalarStyle::SingleQuoted
-                } else {
-                    ScalarStyle::Any
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E> {
-                Ok(ScalarStyle::SingleQuoted)
-            }
-        }
-
         let style = if value.contains('\n') {
             ScalarStyle::Literal
         } else {
-            let result = crate::de::visit_untagged_scalar(
-                InferScalarStyle,
-                value,
-                None,
-                libyaml::parser::ScalarStyle::Plain,
-            );
-            result.unwrap_or(ScalarStyle::Any)
+            ScalarStyle::Any
         };
 
         self.emit_scalar(Scalar {
