@@ -49,18 +49,18 @@ fn test_incorrect_type() {
 #[test]
 fn test_incorrect_nested_type() {
     #[derive(Deserialize, Debug)]
-    struct A {
+    pub struct A {
         #[allow(dead_code)]
-        b: Vec<B>,
+        pub b: Vec<B>,
     }
     #[derive(Deserialize, Debug)]
-    enum B {
-        C(C),
+    pub enum B {
+        C(#[allow(dead_code)] C),
     }
     #[derive(Deserialize, Debug)]
-    struct C {
+    pub struct C {
         #[allow(dead_code)]
-        d: bool,
+        pub d: bool,
     }
     let yaml = indoc! {"
         b:
@@ -80,11 +80,11 @@ fn test_empty() {
 #[test]
 fn test_missing_field() {
     #[derive(Deserialize, Debug)]
-    struct Basic {
+    pub struct Basic {
         #[allow(dead_code)]
-        v: bool,
+        pub v: bool,
         #[allow(dead_code)]
-        w: bool,
+        pub w: bool,
     }
     let yaml = indoc! {"
         ---
@@ -107,9 +107,9 @@ fn test_unknown_anchor() {
 #[test]
 fn test_ignored_unknown_anchor() {
     #[derive(Deserialize, Debug)]
-    struct Wrapper {
+    pub struct Wrapper {
         #[allow(dead_code)]
-        c: (),
+        pub c: (),
     }
     let yaml = indoc! {"
         b: [*a]
@@ -161,8 +161,8 @@ fn test_second_document_syntax_error() {
 #[test]
 fn test_missing_enum_tag() {
     #[derive(Deserialize, Debug)]
-    enum E {
-        V(usize),
+    pub enum E {
+        V(#[allow(dead_code)] usize),
     }
     let yaml = indoc! {r#"
         "V": 16
@@ -175,11 +175,11 @@ fn test_missing_enum_tag() {
 #[test]
 fn test_serialize_nested_enum() {
     #[derive(Serialize, Debug)]
-    enum Outer {
+    pub enum Outer {
         Inner(Inner),
     }
     #[derive(Serialize, Debug)]
-    enum Inner {
+    pub enum Inner {
         Newtype(usize),
         Tuple(usize, usize),
         Struct { x: usize },
@@ -213,12 +213,12 @@ fn test_serialize_nested_enum() {
 #[test]
 fn test_deserialize_nested_enum() {
     #[derive(Deserialize, Debug)]
-    enum Outer {
-        Inner(Inner),
+    pub enum Outer {
+        Inner(#[allow(dead_code)] Inner),
     }
     #[derive(Deserialize, Debug)]
-    enum Inner {
-        Variant(Vec<usize>),
+    pub enum Inner {
+        Variant(#[allow(dead_code)] Vec<usize>),
     }
 
     let yaml = indoc! {"
@@ -246,8 +246,8 @@ fn test_deserialize_nested_enum() {
 #[test]
 fn test_variant_not_a_seq() {
     #[derive(Deserialize, Debug)]
-    enum E {
-        V(usize),
+    pub enum E {
+        V(#[allow(dead_code)] usize),
     }
     let yaml = indoc! {"
         ---
@@ -260,11 +260,12 @@ fn test_variant_not_a_seq() {
 
 #[test]
 fn test_struct_from_sequence() {
-    #[allow(dead_code)]
     #[derive(Deserialize, Debug)]
-    struct Struct {
-        x: usize,
-        y: usize,
+    pub struct Struct {
+        #[allow(dead_code)]
+        pub x: usize,
+        #[allow(dead_code)]
+        pub y: usize,
     }
     let yaml = indoc! {"
         [0, 0]
@@ -336,9 +337,9 @@ fn test_long_tuple() {
 #[test]
 fn test_invalid_scalar_type() {
     #[derive(Deserialize, Debug)]
-    struct S {
+    pub struct S {
         #[allow(dead_code)]
-        x: [i32; 1],
+        pub x: [i32; 1],
     }
 
     let yaml = "x: ''\n";
@@ -350,9 +351,9 @@ fn test_invalid_scalar_type() {
 #[test]
 fn test_infinite_recursion_objects() {
     #[derive(Deserialize, Debug)]
-    struct S {
+    pub struct S {
         #[allow(dead_code)]
-        x: Option<Box<S>>,
+        pub x: Option<Box<S>>,
     }
 
     let yaml = "&a {'x': *a}";
@@ -364,7 +365,10 @@ fn test_infinite_recursion_objects() {
 #[test]
 fn test_infinite_recursion_arrays() {
     #[derive(Deserialize, Debug)]
-    struct S(usize, Option<Box<S>>);
+    pub struct S(
+        #[allow(dead_code)] pub usize,
+        #[allow(dead_code)] pub Option<Box<S>>,
+    );
 
     let yaml = "&a [0, *a]";
     let expected = "recursion limit exceeded";
@@ -375,7 +379,7 @@ fn test_infinite_recursion_arrays() {
 #[test]
 fn test_infinite_recursion_newtype() {
     #[derive(Deserialize, Debug)]
-    struct S(Option<Box<S>>);
+    pub struct S(#[allow(dead_code)] pub Option<Box<S>>);
 
     let yaml = "&a [*a]";
     let expected = "recursion limit exceeded";
@@ -386,9 +390,9 @@ fn test_infinite_recursion_newtype() {
 #[test]
 fn test_finite_recursion_objects() {
     #[derive(Deserialize, Debug)]
-    struct S {
+    pub struct S {
         #[allow(dead_code)]
-        x: Option<Box<S>>,
+        pub x: Option<Box<S>>,
     }
 
     let yaml = "{'x':".repeat(1_000) + &"}".repeat(1_000);
@@ -400,7 +404,10 @@ fn test_finite_recursion_objects() {
 #[test]
 fn test_finite_recursion_arrays() {
     #[derive(Deserialize, Debug)]
-    struct S(usize, Option<Box<S>>);
+    pub struct S(
+        #[allow(dead_code)] pub usize,
+        #[allow(dead_code)] pub Option<Box<S>>,
+    );
 
     let yaml = "[0, ".repeat(1_000) + &"]".repeat(1_000);
     let expected = "recursion limit exceeded at line 1 column 513";
@@ -413,31 +420,31 @@ fn test_billion_laughs() {
     #[derive(Debug)]
     struct X;
 
+    impl<'de> Visitor<'de> for X {
+        type Value = X;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("exponential blowup")
+        }
+
+        fn visit_unit<E>(self) -> Result<X, E> {
+            Ok(X)
+        }
+
+        fn visit_seq<S>(self, mut seq: S) -> Result<X, S::Error>
+        where
+            S: SeqAccess<'de>,
+        {
+            while let Some(X) = seq.next_element()? {}
+            Ok(X)
+        }
+    }
+
     impl<'de> Deserialize<'de> for X {
         fn deserialize<D>(deserializer: D) -> Result<X, D::Error>
         where
             D: serde::Deserializer<'de>,
         {
-            impl<'de> Visitor<'de> for X {
-                type Value = X;
-
-                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                    formatter.write_str("exponential blowup")
-                }
-
-                fn visit_unit<E>(self) -> Result<X, E> {
-                    Ok(X)
-                }
-
-                fn visit_seq<S>(self, mut seq: S) -> Result<X, S::Error>
-                where
-                    S: SeqAccess<'de>,
-                {
-                    while let Some(X) = seq.next_element()? {}
-                    Ok(X)
-                }
-            }
-
             deserializer.deserialize_any(X)
         }
     }
